@@ -12,45 +12,6 @@ services:
       - ~/.m2:/root/.m2
     networks:
       - app-network
-  demo1:
-    build:
-      context: ./demo1
-    container_name: demo1
-    ports:
-      - "8081:8080"
-    volumes:
-      - ./demo1:/app
-      - ~/.m2:/root/.m2
-    depends_on:
-      - service-discovery
-    networks:
-      - app-network
-  demo1-2:
-    build:
-      context: ./demo1
-    container_name: demo1-2
-    ports:
-      - "8084:8080"
-    volumes:
-      - ./demo1:/app
-      - ~/.m2:/root/.m2
-    depends_on:
-      - service-discovery
-    networks:
-      - app-network
-  demo2:
-    build:
-      context: ./demo2
-    container_name: demo2
-    ports:
-      - "8082:8080"
-    volumes:
-      - ./demo2:/app
-      - ~/.m2:/root/.m2
-    depends_on:
-      - service-discovery
-    networks:
-      - app-network
   auth-service:
     build:
       context: ./auth-service
@@ -59,6 +20,58 @@ services:
       - "8085:8080"
     volumes:
       - ./auth-service:/app
+      - ~/.m2:/root/.m2
+    depends_on:
+      - service-discovery
+    networks:
+      - app-network
+  cliente-service:
+    build:
+      context: ./cliente-service
+    container_name: cliente-service
+    ports:
+      - "8090:8080"
+    volumes:
+      - ./cliente-service:/app
+      - ~/.m2:/root/.m2
+    depends_on:
+      - service-discovery
+    networks:
+      - app-network
+  servico-service:
+      build:
+        context: ./servico-service
+      container_name: servico-service
+      ports:
+      - "8091:8080"
+      volumes:
+      - ./servico-service:/app
+      - ~/.m2:/root/.m2
+      depends_on:
+      - service-discovery
+      networks:
+      - app-network
+  roupa-service:
+    build:
+      context: ./roupa-service
+    container_name: roupa-service
+    ports:
+      - "8092:8080"
+    volumes:
+      - ./roupa-service:/app
+      - ~/.m2:/root/.m2
+    depends_on:
+      - service-discovery
+    networks:
+      - app-network
+  pedido-service:
+    build:
+      context: ./pedido-service
+    container_name: pedido-service
+    ports:
+      - "8093:8080"
+    volumes:
+      - ./pedido-service:/app
       - ~/.m2:/root/.m2
     depends_on:
       - service-discovery
