@@ -6,82 +6,52 @@ services:
       context: ./service-discovery
     container_name: service-discovery
     ports:
-      - "8083:8080"
-    volumes:
-      - ./service-discovery:/app
-      - ~/.m2:/root/.m2
+      - "8761:8761"
+    environment:
+      - SERVER_PORT=8761
     networks:
       - app-network
-  demo1:
-    build:
-      context: ./demo1
-    container_name: demo1
-    ports:
-      - "8081:8080"
-    volumes:
-      - ./demo1:/app
-      - ~/.m2:/root/.m2
-    depends_on:
-      - service-discovery
-    networks:
-      - app-network
-  demo1-2:
-    build:
-      context: ./demo1
-    container_name: demo1-2
-    ports:
-      - "8084:8080"
-    volumes:
-      - ./demo1:/app
-      - ~/.m2:/root/.m2
-    depends_on:
-      - service-discovery
-    networks:
-      - app-network
-  demo2:
-    build:
-      context: ./demo2
-    container_name: demo2
-    ports:
-      - "8082:8080"
-    volumes:
-      - ./demo2:/app
-      - ~/.m2:/root/.m2
-    depends_on:
-      - service-discovery
-    networks:
-      - app-network
+
   auth-service:
     build:
       context: ./auth-service
     container_name: auth-service
-    ports:
-      - "8085:8080"
-    volumes:
-      - ./auth-service:/app
-      - ~/.m2:/root/.m2
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+      - SPRING_RABBITMQ_HOST=rabbitmq
     depends_on:
       - service-discovery
       - rabbitmq
     networks:
       - app-network
+
+  laundry-service:
+    build:
+      context: ./laundry-service
+    container_name: laundry-service
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+    depends_on:
+      - service-discovery
+    networks:
+      - app-network
+
   gateway-service:
     build:
       context: ./gateway-service
     container_name: gateway-service
     ports:
-      - "8086:8080"
-    volumes:
-      - ./gateway-service:/app
-      - ~/.m2:/root/.m2
+      - "8080:8080"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+      - JWT_SECRET=UmaSenhaLongaParaGerarHash
     depends_on:
       - service-discovery
-      - demo1
-      - demo2
-      - demo1-2
       - auth-service
+      - laundry-service
     networks:
       - app-network
+
   rabbitmq:
     image: "rabbitmq:4.1.4-management"
     container_name: rabbitmq
@@ -93,20 +63,7 @@ services:
       - "15672:15672"
     networks:
       - app-network
-  
-  # nginx:
-  #   image: nginx:latest
-  #   container_name: nginx
-  #   ports:
-  #     - "80:80"
-  #   volumes:
-  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
-  #   depends_on:
-  #     - demo1
-  #     - demo2
-  #   networks:
-  #     - app-network
-  
+
 networks:
   app-network:
     driver: bridge

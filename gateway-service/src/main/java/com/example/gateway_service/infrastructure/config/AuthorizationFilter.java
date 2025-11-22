@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
@@ -18,28 +19,24 @@ import com.example.gateway_service.domain.user.vo.RoleType;
 
 import reactor.core.publisher.Mono;
 
+@Component
 public class AuthorizationFilter implements WebFilter {
 
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    public static final Map<String, RoleType> routeRole = Map.of(
-        "/demo1/waiter", RoleType.WAITER,
-        "/demo1/customer", RoleType.CUSTOMER
+    private static final Map<String, RoleType> routePermissions = Map.of(
+        "/laundry/admin", RoleType.ADMIN,
+        "/auth/users", RoleType.ADMIN
     );
-
-    private boolean isAuthorized(String path, RoleType role) {
-        for (Map.Entry<String, RoleType> entry: routeRole.entrySet()) {
-            if (path.startsWith(entry.getKey())) {
-                return role.covers(entry.getValue());
-            }
-        }
-
-        return true;
-    }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+        return exchange.getResponse().setComplete();
+    }
+
+    private Mono<Void> forbidden(ServerWebExchange exchange) {
+        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
         return exchange.getResponse().setComplete();
     }
 
@@ -48,19 +45,16 @@ public class AuthorizationFilter implements WebFilter {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().toString();
 
-        // Se a rota não exige autenticação, segue
-        if (routeRole.entrySet().stream().noneMatch(entry -> path.startsWith(entry.getKey()))) {
+        // Rotas públicas (Login, Cadastro, Eureka)
+        if (path.startsWith("/auth/login") || path.startsWith("/auth/register") || path.contains("/eureka")) {
             return chain.filter(exchange);
         }
 
-        // Verifica se o token está no header da req como "Authorization" e inicia com "Bearer "
         String authHeader = request.getHeaders().getFirst("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return unauthorized(exchange);
         }
 
-
-        // decodifica e valida o jwt
         String token = authHeader.substring(7);
         DecodedJWT jwt;
         try {
@@ -71,28 +65,29 @@ public class AuthorizationFilter implements WebFilter {
             return unauthorized(exchange);
         }
 
-        // verifica se o jwt é access
-        String tokenType = jwt.getClaim("type").asString();
-        if (!tokenType.equals("access")) {
-            return unauthorized(exchange);
-        }
-
-        // verifica se está com uma role valida
-        String userRole = jwt.getClaim("role").asString();
-        RoleType roleType = null;
+        String roleStr = jwt.getClaim("role").asString();
+        String userId = jwt.getSubject();
+        RoleType userRole;
+        
         try {
-            roleType = RoleType.valueOf(userRole);
+            userRole = RoleType.valueOf(roleStr);
         } catch (Exception e) {
             return unauthorized(exchange);
         }
 
-        // verifica a permissão com base na role 
-        if (!isAuthorized(path, roleType)) {
-            exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
-            return exchange.getResponse().setComplete();
+        for (Map.Entry<String, RoleType> entry : routePermissions.entrySet()) {
+            if (path.startsWith(entry.getKey())) {
+                if (!userRole.covers(entry.getValue())) {
+                    return forbidden(exchange);
+                }
+            }
         }
 
+        ServerHttpRequest modifiedRequest = request.mutate()
+                .header("X-User-Id", userId)
+                .header("X-User-Role", roleStr)
+                .build();
 
-        return chain.filter(exchange);
+        return chain.filter(exchange.mutate().request(modifiedRequest).build());
     }
 }
