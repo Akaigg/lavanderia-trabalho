@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -25,9 +26,10 @@ public class AuthorizationFilter implements WebFilter {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
+    // Define quais rotas exigem permissão de ADMIN
     private static final Map<String, RoleType> routePermissions = Map.of(
         "/laundry/admin", RoleType.ADMIN,
-        "/auth/users", RoleType.ADMIN
+        "/users", RoleType.ADMIN // A listagem (GET) é protegida, o cadastro (POST) liberamos abaixo
     );
 
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
@@ -44,12 +46,23 @@ public class AuthorizationFilter implements WebFilter {
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().toString();
+        HttpMethod method = request.getMethod();
 
-        // Rotas públicas (Login, Cadastro, Eureka)
-        if (path.startsWith("/auth/login") || path.startsWith("/auth/register") || path.contains("/eureka")) {
+        // --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
+        // Deixa passar:
+        // 1. Login (/auth/login...)
+        // 2. Eureka (/eureka...)
+        // 3. Cadastro de Usuário (Apenas se for POST em /users)
+        boolean isPublicRoute = path.startsWith("/auth/login") || 
+                                path.contains("/eureka") ||
+                                (path.equals("/users") && method.equals(HttpMethod.POST));
+
+        if (isPublicRoute) {
             return chain.filter(exchange);
         }
+        // ----------------------------------
 
+        // Daqui para baixo, verifica o Crachá (Token)
         String authHeader = request.getHeaders().getFirst("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return unauthorized(exchange);
@@ -75,8 +88,15 @@ public class AuthorizationFilter implements WebFilter {
             return unauthorized(exchange);
         }
 
+        // Verifica se tem permissão de ADMIN para rotas restritas
         for (Map.Entry<String, RoleType> entry : routePermissions.entrySet()) {
+            // Se a rota é protegida (ex: /laundry/admin)
             if (path.startsWith(entry.getKey())) {
+                // Se for /users, só bloqueia se NÃO for POST (ou seja, GET para listar)
+                if (path.equals("/users") && method.equals(HttpMethod.POST)) {
+                    continue; // Deixa passar o cadastro
+                }
+                
                 if (!userRole.covers(entry.getValue())) {
                     return forbidden(exchange);
                 }
