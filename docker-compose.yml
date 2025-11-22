@@ -6,9 +6,9 @@ services:
       context: ./service-discovery
     container_name: service-discovery
     ports:
-      - "8761:8761"
+      - "8999:8999"
     environment:
-      - SERVER_PORT=8761
+      - SERVER_PORT=8999
     networks:
       - app-network
 
@@ -17,7 +17,7 @@ services:
       context: ./auth-service
     container_name: auth-service
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8999/eureka/
       - SPRING_RABBITMQ_HOST=rabbitmq
     depends_on:
       - service-discovery
@@ -30,7 +30,7 @@ services:
       context: ./laundry-service
     container_name: laundry-service
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8999/eureka/
     depends_on:
       - service-discovery
     networks:
@@ -41,9 +41,9 @@ services:
       context: ./gateway-service
     container_name: gateway-service
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8999/eureka/
       - JWT_SECRET=UmaSenhaLongaParaGerarHash
     depends_on:
       - service-discovery
