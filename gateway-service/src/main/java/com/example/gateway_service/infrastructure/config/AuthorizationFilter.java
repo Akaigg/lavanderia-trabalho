@@ -4,7 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -26,10 +25,9 @@ public class AuthorizationFilter implements WebFilter {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    // Define quais rotas exigem permissão de ADMIN
     private static final Map<String, RoleType> routePermissions = Map.of(
         "/laundry/admin", RoleType.ADMIN,
-        "/users", RoleType.ADMIN 
+        "/auth/users", RoleType.ADMIN
     );
 
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
@@ -46,18 +44,10 @@ public class AuthorizationFilter implements WebFilter {
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().toString();
-        HttpMethod method = request.getMethod();
 
-        // --- CORREÇÃO AQUI ---
-        // Usamos startsWith("/users") para aceitar "/users", "/users/" e "/users?..."
-        boolean isLogin = path.startsWith("/auth/login");
-        boolean isEureka = path.contains("/eureka");
-        boolean isRegister = path.startsWith("/users") && method.matches("POST"); 
-
-        if (isLogin || isEureka || isRegister) {
+        if (path.startsWith("/auth/login") || path.startsWith("/auth/register") || path.contains("/eureka")) {
             return chain.filter(exchange);
         }
-        // ---------------------
 
         String authHeader = request.getHeaders().getFirst("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -84,14 +74,8 @@ public class AuthorizationFilter implements WebFilter {
             return unauthorized(exchange);
         }
 
-        // Verifica permissões de Admin
         for (Map.Entry<String, RoleType> entry : routePermissions.entrySet()) {
             if (path.startsWith(entry.getKey())) {
-                // Se for cadastro (POST /users...), ignora a checagem de admin
-                if (path.startsWith("/users") && method.matches("POST")) {
-                    continue;
-                }
-                
                 if (!userRole.covers(entry.getValue())) {
                     return forbidden(exchange);
                 }
