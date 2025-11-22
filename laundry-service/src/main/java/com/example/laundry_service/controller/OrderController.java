@@ -41,11 +41,11 @@ public class OrderController {
         return ResponseEntity.ok(repository.findAll());
     }
 
-    // ADMIN: Definir preço
+   
     @PutMapping("/admin/orders/{id}/price")
     public ResponseEntity<Order> setPrice(@PathVariable UUID id, @RequestBody PriceOrderRequest request) {
         Order order = repository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
         
         order.setPrice(request.price());
         order.setStatus(Order.OrderStatus.PRICED);

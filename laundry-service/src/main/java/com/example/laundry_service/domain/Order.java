@@ -16,28 +16,23 @@ public class Order {
     private UUID id;
 
     @Column(nullable = false)
-    private UUID userId; // ID do usuário vindo do Auth-Service
+    private UUID userId;
 
     @Column(nullable = false)
-    private String clothesType; // Ex: Camisa, Calça
+    private String clothesType;
 
     @Enumerated(EnumType.STRING)
-    private WashType washType;
+    private WashType washType; 
 
-    private String notes;
+    private String notes; 
 
-    private BigDecimal price; // Definido pelo Admin
+    private BigDecimal price; 
 
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
-    public enum WashType {
-        DRY, NORMAL
-    }
-
-    public enum OrderStatus {
-        PENDING, PRICED, COMPLETED
-    }
+    public enum WashType { DRY, NORMAL }
+    public enum OrderStatus { PENDING, PRICED, COMPLETED }
 
     public Order(UUID userId, String clothesType, WashType washType, String notes) {
         this.userId = userId;
