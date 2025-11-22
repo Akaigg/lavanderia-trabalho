@@ -29,7 +29,7 @@ public class AuthorizationFilter implements WebFilter {
     // Define quais rotas exigem permissão de ADMIN
     private static final Map<String, RoleType> routePermissions = Map.of(
         "/laundry/admin", RoleType.ADMIN,
-        "/users", RoleType.ADMIN // A listagem (GET) é protegida, o cadastro (POST) liberamos abaixo
+        "/users", RoleType.ADMIN 
     );
 
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
@@ -48,21 +48,17 @@ public class AuthorizationFilter implements WebFilter {
         String path = request.getPath().toString();
         HttpMethod method = request.getMethod();
 
-        // --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
-        // Deixa passar:
-        // 1. Login (/auth/login...)
-        // 2. Eureka (/eureka...)
-        // 3. Cadastro de Usuário (Apenas se for POST em /users)
-        boolean isPublicRoute = path.startsWith("/auth/login") || 
-                                path.contains("/eureka") ||
-                                (path.equals("/users") && method.equals(HttpMethod.POST));
+        // --- CORREÇÃO AQUI ---
+        // Usamos startsWith("/users") para aceitar "/users", "/users/" e "/users?..."
+        boolean isLogin = path.startsWith("/auth/login");
+        boolean isEureka = path.contains("/eureka");
+        boolean isRegister = path.startsWith("/users") && method.matches("POST"); 
 
-        if (isPublicRoute) {
+        if (isLogin || isEureka || isRegister) {
             return chain.filter(exchange);
         }
-        // ----------------------------------
+        // ---------------------
 
-        // Daqui para baixo, verifica o Crachá (Token)
         String authHeader = request.getHeaders().getFirst("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return unauthorized(exchange);
@@ -88,13 +84,12 @@ public class AuthorizationFilter implements WebFilter {
             return unauthorized(exchange);
         }
 
-        // Verifica se tem permissão de ADMIN para rotas restritas
+        // Verifica permissões de Admin
         for (Map.Entry<String, RoleType> entry : routePermissions.entrySet()) {
-            // Se a rota é protegida (ex: /laundry/admin)
             if (path.startsWith(entry.getKey())) {
-                // Se for /users, só bloqueia se NÃO for POST (ou seja, GET para listar)
-                if (path.equals("/users") && method.equals(HttpMethod.POST)) {
-                    continue; // Deixa passar o cadastro
+                // Se for cadastro (POST /users...), ignora a checagem de admin
+                if (path.startsWith("/users") && method.matches("POST")) {
+                    continue;
                 }
                 
                 if (!userRole.covers(entry.getValue())) {
