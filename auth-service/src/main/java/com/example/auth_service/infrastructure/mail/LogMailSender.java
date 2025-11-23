@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-
 import java.time.Instant;
 
 @Component
@@ -15,6 +14,11 @@ public class LogMailSender implements MailSender {
 
     @Override
     public void sendMagicLink(String to, String magicLink, Instant expiresAt) {
-        log.info("[DEV] Magic link para {}: {} (expira em {})", to, magicLink, expiresAt);
+        log.info("[MAIL] Magic link para {}: {} (expira em {})", to, magicLink, expiresAt);
+    }
+
+    @Override
+    public void sendWelcome(String to, String name) {
+        log.info("[MAIL] E-mail de Boas-vindas enviado para {} ({})", name, to);
     }
 }

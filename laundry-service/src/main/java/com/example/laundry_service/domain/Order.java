@@ -32,7 +32,7 @@ public class Order {
     private OrderStatus status;
 
     public enum WashType { DRY, NORMAL }
-    public enum OrderStatus { PENDING, PRICED, COMPLETED }
+    public enum OrderStatus { PENDENTE, PREÇO, PAGO, COMPLETO }
 
     public Order(UUID userId, String clothesType, WashType washType, String notes) {
         this.userId = userId;
